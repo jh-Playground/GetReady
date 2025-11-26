@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kids Launchpad Checklist</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            skyDeep: '#0f172a',
+            skySoft: '#e0f2fe',
+            successSoft: '#dcfce7',
+          },
+          boxShadow: {
+            soft: '0 20px 45px -20px rgba(15, 23, 42, 0.35)',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-8">
+
+  <main class="w-full max-w-5xl bg-white rounded-3xl shadow-soft p-6 md:p-8">
+    <!-- Header -->
+    <header class="mb-6 md:mb-8">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-semibold text-slate-900">
+            Launchpad for Sunday &amp; Isaac
+          </h1>
+          <p class="text-sm md:text-base text-slate-500 mt-1">
+            Check off your tasks to get ready. When you’re done, you’ll get a fun fact!
+          </p>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-full bg-skySoft px-4 py-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="timeOfDayLabel" class="text-xs font-medium uppercase tracking-wide text-slate-700">
+            <!-- Filled by JS -->
+          </span>
+        </div>
+      </div>
+      <p id="timeMessage" class="text-xs md:text-sm text-slate-500 mt-2">
+        <!-- Filled by JS -->
+      </p>
+    </header>
+
+    <!-- Checklists -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+      <!-- Sunday -->
+      <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg md:text-xl font-semibold text-slate-900">
+            Sunday
+          </h2>
+
+        </div>
+
+        <ul id="tasks-Sunday" class="space-y-2">
+          <!-- Filled by JS -->
+        </ul>
+
+        <div id="status-Sunday"
+             class="mt-4 text-xs md:text-sm text-slate-600 bg-white/80 border border-slate-200 rounded-xl px-3 py-2">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+
+      <!-- Isaac -->
+      <div class="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg md:text-xl font-semibold text-slate-900">
+            Isaac
+          </h2>
+        </div>
+
+        <ul id="tasks-Isaac" class="space-y-2">
+          <!-- Filled by JS -->
+        </ul>
+
+        <div id="status-Isaac"
+             class="mt-4 text-xs md:text-sm text-slate-600 bg-white/80 border border-slate-200 rounded-xl px-3 py-2">
+          <!-- Filled by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Global "we're ready" message -->
+    <section id="allDoneBanner"
+             class="mt-6 md:mt-8 hidden">
+      <div class="rounded-2xl border border-emerald-200 bg-successSoft px-4 py-4 md:px-6 md:py-5 flex items-start gap-3">
+        <div class="mt-1 text-xl">
+          🚀
+        </div>
+        <div>
+          <h3 id="allDoneTitle" class="text-sm md:text-base font-semibold text-emerald-900">
+            All systems go!
+          </h3>
+          <p id="allDoneBody" class="text-xs md:text-sm text-emerald-800 mt-1">
+            Sunday and Isaac are both ready. Time to chill bruh! ✨
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // --- CONFIGURATION -------------------------------------------------------
+
+    const CHILDREN = ['Sunday', 'Isaac'];
+
+    // Tasks are grouped by time of day.
+    // "appliesTo" controls which kid(s) see the task.
+    const tasksByTimeOfDay = {
+      morning: [
+        { id: 'shower', label: 'Have a shower', appliesTo: ['Isaac'] },
+        { id: 'brush-teeth', label: 'Brush your teeth', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'deodorant', label: 'Put on deodorant', appliesTo: ['Isaac'] },
+        { id: 'pack-bag', label: 'Pack your school bag and lunch.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'dishwasher', label: 'Done your DWJ?', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'pe', label: 'Do you have PE today? Pack your sports clothes.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'instrument', label: 'Do you need to take your viola?', appliesTo: ['Sunday'] },
+        { id: 'training', label: 'Do you have training after school? Pack your gear.', appliesTo: ['Sunday'] },
+        { id: 'make-bed', label: 'Make your bed', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'floor-clean', label: 'Check your bedroom floor is clear.', appliesTo: ['Sunday', 'Isaac'] },
+      ],
+      afternoon: [
+        { id: 'snack', label: 'Have a healthy snack.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'homework', label: 'Spend 30 minutes on homework, reading, or something else.', appliesTo: ['Sunday', 'Isaac'] },
+      ],
+      evening: [
+        { id: 'pack-tomorrow', label: 'Pack your bag for tomorrow.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'check-uniform', label: 'Is your uniform / clothes ready for tomorrow?', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'anything-special', label: 'Is anything special happening tomorrow? Pack any special things you need.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'shower', label: 'Have a shower.', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'brush-teeth', label: 'Brush your teeth', appliesTo: ['Sunday', 'Isaac'] },
+        { id: 'pat-dog', label: 'Pat the dog (she is very nice!)', appliesTo: ['Sunday', 'Isaac'] },
+      ]
+    };
+
+    const timeOfDayLabels = {
+      morning: 'Morning checklist',
+      afternoon: 'After school checklist',
+      evening: 'Evening / get-ready-for-tomorrow checklist'
+    };
+
+    const timeOfDayMessages = {
+      morning: 'It’s morning mode. Let’s get ready for school!',
+      afternoon: 'It’s after school. Time to reset and recharge.',
+      evening: 'It’s evening. Let’s get set for tomorrow.'
+    };
+
+    // Customisable completion messages per time of day (for when BOTH are done)
+    const completionMessagesByTimeOfDay = {
+      morning: {
+        title: 'Launch sequence complete!',
+        body: 'Bags packed, teeth brushed, beds made. Sunday and Isaac are ready for school. 🚗💨'
+      },
+      afternoon: {
+        title: 'After-school legends!',
+        body: "Snacks, homework and reset are done. Awesome effort, team. It's screentime o'clock! 😃"
+      },
+      evening: {
+        title: 'Mission: Tomorrow complete!',
+        body: 'Everything is ready for tomorrow. You two are absolute champions. Relax time unlocked. ✨'
+      }
+    };
+
+    // A bigger fun-facts pool
+    const funFacts = {
+      shared: [
+        'Koalas sleep up to 18–20 hours a day.',
+        'Octopuses have three hearts.',
+        'Bananas are berries, but strawberries are not!',
+        'The Eiffel Tower can grow more than 15 cm in summer heat.',
+        'Honey never spoils – it’s been found in ancient tombs still okay to eat.',
+        'Some turtles can breathe through their bottoms!',
+        'A group of flamingos is called a “flamboyance”.',
+        'There are more stars in the universe than grains of sand on all the beaches on Earth.',
+        'A day on Venus is longer than a year on Venus.',
+        'Sloths can hold their breath longer than dolphins can.',
+        'Cows have best friends and can get stressed when they are separated.',
+        'Butterflies taste with their feet.',
+        'A group of hedgehogs is called a “prickle”.',
+        'Sea otters hold hands when they sleep so they don’t drift apart.',
+        'A bolt of lightning is five times hotter than the surface of the sun.',
+        'Some frogs can freeze in winter and then thaw out and keep living.',
+        'If you could drive straight up, you’d reach space in about an hour.',
+        'Ants don’t have lungs. They breathe through tiny holes in their bodies.',
+        'Penguins propose with pebbles – they gift a stone to the penguin they like.',
+        'Sharks existed before trees did on Earth.',
+      ],
+      Sunday: [
+        'Cats have over 20 muscles just to move their ears.',
+        'Cats can jump up to six times their own height.',
+        'Most cats don’t meow at other cats – they mostly meow at humans.',
+        'Tigers have striped skin, not just striped fur.',
+        'Owls can rotate their heads about 270 degrees.',
+        'A group of kittens is called a “kindle”.',
+        'Every snowflake you see has a different pattern.',
+        'The world’s biggest jellyfish has tentacles that can be longer than a blue whale.',
+        'Hummingbirds are the only birds that can fly backwards.',
+        'Some lizards can drop their tails to escape danger and then grow a new one.',
+      ],
+      Isaac: [
+        'Sharks have been around longer than trees.',
+        'The fastest recorded football shot was over 210 km/h.',
+        'A cheetah can run faster than a car driving through a school zone.',
+        'The tallest mountain in the solar system is Olympus Mons on Mars.',
+        'If you shout into space, no one can hear you – sound can’t travel in a vacuum.',
+        'The International Space Station travels around Earth about every 90 minutes.',
+        'A bolt of lightning can be hotter than 28,000°C.',
+        'Some metals, like sodium and potassium, explode when they touch water.',
+        'Earth is the only planet in our solar system not named after a god.',
+        'Your heart beats over 100,000 times every day, even when you’re just chilling.',
+      ]
+    };
+
+    // --- HELPERS -------------------------------------------------------------
+
+    function getCurrentTimeOfDay() {
+      const hour = new Date().getHours(); // 0–23
+      if (hour < 9) return 'morning';
+      if (hour < 19) return 'afternoon';
+      return 'evening';
+    }
+
+    function pickFunFact(childName) {
+      const pool = [
+        ...(funFacts.shared || []),
+        ...((funFacts[childName]) || [])
+      ];
+      if (!pool.length) return 'You’re awesome. 😄';
+      const index = Math.floor(Math.random() * pool.length);
+      return pool[index];
+    }
+
+    function allTasksForChildCompleted(childName) {
+      const boxes = document.querySelectorAll(`input[type="checkbox"][data-child="${childName}"]`);
+      if (!boxes.length) return false;
+      return Array.from(boxes).every(cb => cb.checked);
+    }
+
+    function updateChildStatus(childName) {
+      const statusEl = document.getElementById(`status-${childName}`);
+      const boxes = document.querySelectorAll(`input[type="checkbox"][data-child="${childName}"]`);
+      const total = boxes.length;
+      const checked = Array.from(boxes).filter(cb => cb.checked).length;
+
+      statusEl.classList.remove('bg-successSoft', 'border-emerald-300', 'text-emerald-900');
+
+      if (total === 0) {
+        statusEl.textContent = 'No tasks for this time of day.';
+        return;
+      }
+
+      if (checked < total) {
+        statusEl.textContent = `${checked} of ${total} tasks done. Keep going!`;
+      } else {
+        statusEl.classList.add('bg-successSoft', 'border-emerald-300', 'text-emerald-900');
+        statusEl.innerHTML = `
+          <span class="font-semibold">Nice work, ${childName}! 🎉</span>
+          <br />
+          <span class="block mt-1">Fun fact: ${pickFunFact(childName)}</span>
+        `;
+      }
+    }
+
+    function updateAllDoneBanner() {
+      const banner = document.getElementById('allDoneBanner');
+      const everyoneDone = CHILDREN.every(allTasksForChildCompleted);
+
+      if (!everyoneDone) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      const currentTimeOfDay = getCurrentTimeOfDay();
+      const config = completionMessagesByTimeOfDay[currentTimeOfDay] || completionMessagesByTimeOfDay.morning;
+
+      const titleEl = document.getElementById('allDoneTitle');
+      const bodyEl = document.getElementById('allDoneBody');
+
+      if (titleEl && bodyEl && config) {
+        titleEl.textContent = config.title;
+        bodyEl.textContent = config.body;
+      }
+
+      banner.classList.remove('hidden');
+    }
+
+    function renderTasksForTimeOfDay(timeOfDay) {
+      const tasks = tasksByTimeOfDay[timeOfDay] || tasksByTimeOfDay['morning'];
+
+      CHILDREN.forEach(childName => {
+        const listEl = document.getElementById(`tasks-${childName}`);
+        listEl.innerHTML = '';
+
+        const childTasks = tasks.filter(task =>
+          Array.isArray(task.appliesTo) && task.appliesTo.includes(childName)
+        );
+
+        if (!childTasks.length) {
+          const li = document.createElement('li');
+          li.className = 'text-xs md:text-sm text-slate-500 italic';
+          li.textContent = 'No tasks right now.';
+          listEl.appendChild(li);
+          return;
+        }
+
+        childTasks.forEach(task => {
+          const li = document.createElement('li');
+          li.className = 'flex items-start gap-3 bg-white rounded-xl border border-slate-200 px-3 py-2';
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.id = `${childName}-${task.id}`;
+          checkbox.className = 'mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500';
+          checkbox.dataset.child = childName;
+          checkbox.dataset.taskId = task.id;
+
+          const label = document.createElement('label');
+          label.setAttribute('for', checkbox.id);
+          label.className = 'text-xs md:text-sm text-slate-800';
+          label.textContent = task.label;
+
+          li.appendChild(checkbox);
+          li.appendChild(label);
+          listEl.appendChild(li);
+
+          checkbox.addEventListener('change', () => {
+            updateChildStatus(childName);
+            updateAllDoneBanner();
+          });
+        });
+
+        updateChildStatus(childName);
+      });
+
+      updateAllDoneBanner();
+    }
+
+    // --- INIT ----------------------------------------------------------------
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const currentTimeOfDay = getCurrentTimeOfDay();
+      const labelEl = document.getElementById('timeOfDayLabel');
+      const messageEl = document.getElementById('timeMessage');
+
+      labelEl.textContent = timeOfDayLabels[currentTimeOfDay] || 'Checklist';
+      messageEl.textContent = timeOfDayMessages[currentTimeOfDay] || '';
+
+      renderTasksForTimeOfDay(currentTimeOfDay);
+    });
+  </script>
+</body>
+</html>
