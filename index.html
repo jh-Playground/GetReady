@@ -345,6 +345,29 @@
       updateAllDoneBanner();
     }
 
+    // Check if ALL tasks for a specific child and time-of-day are checked in stored state
+    function isChildCompleteForTimeOfDay(childName, timeOfDay, state) {
+      const tasks = tasksByTimeOfDay[timeOfDay] || [];
+      const childTasks = tasks.filter(task =>
+        Array.isArray(task.appliesTo) && task.appliesTo.includes(childName)
+      );
+
+      if (!childTasks.length) return false;
+
+      for (const task of childTasks) {
+        const done =
+          state[timeOfDay] &&
+          state[timeOfDay][childName] &&
+          state[timeOfDay][childName][task.id];
+
+        if (done !== true) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
     function renderTasksForTimeOfDay(timeOfDay) {
       activeTimeOfDay = timeOfDay;
       const tasks = tasksByTimeOfDay[timeOfDay] || tasksByTimeOfDay['morning'];
@@ -424,6 +447,17 @@
 
       const initialTimeOfDay = getCurrentTimeOfDay();
       activeTimeOfDay = initialTimeOfDay;
+
+      // For this time-of-day, if a child was fully complete last time,
+      // clear just that child's stored state so they start fresh.
+      CHILDREN.forEach(childName => {
+        if (isChildCompleteForTimeOfDay(childName, initialTimeOfDay, taskState)) {
+          if (taskState[initialTimeOfDay] && taskState[initialTimeOfDay][childName]) {
+            taskState[initialTimeOfDay][childName] = {};
+          }
+        }
+      });
+      saveTaskState();
 
       const messageEl = document.getElementById('timeMessage');
       messageEl.textContent = timeOfDayMessages[initialTimeOfDay] || '';
