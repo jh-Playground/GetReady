@@ -38,12 +38,6 @@
             Check off your tasks to get ready. When you’re done, you’ll get a fun fact!
           </p>
         </div>
-        <div class="inline-flex items-center gap-2 rounded-full bg-skySoft px-4 py-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span id="timeOfDayLabel" class="text-xs font-medium uppercase tracking-wide text-slate-700">
-            <!-- Filled by JS -->
-          </span>
-        </div>
       </div>
       <p id="timeMessage" class="text-xs md:text-sm text-slate-500 mt-2">
         <!-- Filled by JS -->
@@ -58,7 +52,13 @@
           <h2 class="text-lg md:text-xl font-semibold text-slate-900">
             Sunny
           </h2>
-
+          <button
+            id="clear-Sunday"
+            type="button"
+            class="text-[10px] md:text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2"
+          >
+            Clear all
+          </button>
         </div>
 
         <ul id="tasks-Sunday" class="space-y-2">
@@ -77,6 +77,13 @@
           <h2 class="text-lg md:text-xl font-semibold text-slate-900">
             Isey
           </h2>
+          <button
+            id="clear-Isaac"
+            type="button"
+            class="text-[10px] md:text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2"
+          >
+            Clear all
+          </button>
         </div>
 
         <ul id="tasks-Isaac" class="space-y-2">
@@ -102,7 +109,7 @@
             All systems go!
           </h3>
           <p id="allDoneBody" class="text-xs md:text-sm text-emerald-800 mt-1">
-            Sunday and Isaac are both ready. Time to chill bruh! ✨
+            Sunny and Isey are both ready. Time to chill bruh! ✨
           </p>
         </div>
       </div>
@@ -113,6 +120,12 @@
     // --- CONFIGURATION -------------------------------------------------------
 
     const CHILDREN = ['Sunday', 'Isaac'];
+    const STORAGE_KEY = 'kidsLaunchpadState-v1';
+
+    // Keeps track of which time-of-day set is active for this session
+    let activeTimeOfDay = 'morning';
+    // In-memory copy of persisted state
+    let taskState = {};
 
     // Tasks are grouped by time of day.
     // "appliesTo" controls which kid(s) see the task.
@@ -147,12 +160,6 @@
       ]
     };
 
-    const timeOfDayLabels = {
-      morning: 'Morning checklist',
-      afternoon: 'After school checklist',
-      evening: 'Evening / get-ready-for-tomorrow checklist'
-    };
-
     const timeOfDayMessages = {
       morning: 'It’s morning mode. Let’s get ready for school!',
       afternoon: 'It’s after school. Time to reset and recharge.',
@@ -163,11 +170,11 @@
     const completionMessagesByTimeOfDay = {
       morning: {
         title: 'Launch sequence complete!',
-        body: 'Bags packed, teeth brushed, beds made. Sunday and Isaac are ready for school. 🚗💨'
+        body: 'Bags packed, teeth brushed, beds made. Sunny and Isey are ready for school. 🚗💨'
       },
       afternoon: {
         title: 'After-school legends!',
-        body: "Snacks, homework and reset are done. Awesome effort, team. It's screentime o'clock! 😃"
+        body: "Snacks, homework and reset are done. Awesome effort, team. It\'s screentime o\'clock! 😃"
       },
       evening: {
         title: 'Mission: Tomorrow complete!',
@@ -225,7 +232,28 @@
       ]
     };
 
-    // --- HELPERS -------------------------------------------------------------
+    // --- LOCAL STORAGE HELPERS ----------------------------------------------
+
+    function loadTaskState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveTaskState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(taskState));
+      } catch (e) {
+        // Ignore storage errors (e.g. in private mode or very old browsers)
+      }
+    }
+
+    // --- GENERAL HELPERS -----------------------------------------------------
 
     function getCurrentTimeOfDay() {
       const hour = new Date().getHours(); // 0–23
@@ -255,8 +283,6 @@
       const boxes = document.querySelectorAll(`input[type="checkbox"][data-child="${childName}"]`);
       const total = boxes.length;
       const checked = Array.from(boxes).filter(cb => cb.checked).length;
-      let checkedPercentage = (checked/total)*100;
-      let checkedPercentageNoPlaces = checkedPercentage.toFixed(0);
 
       statusEl.classList.remove('bg-successSoft', 'border-emerald-300', 'text-emerald-900');
 
@@ -264,6 +290,9 @@
         statusEl.textContent = 'No tasks for this time of day.';
         return;
       }
+
+      const checkedPercentage = (checked / total) * 100;
+      const checkedPercentageNoPlaces = checkedPercentage.toFixed(0);
 
       if (checked < total) {
         statusEl.textContent = `${checked} of ${total} (${checkedPercentageNoPlaces}%) tasks done. Keep going!`;
@@ -286,8 +315,7 @@
         return;
       }
 
-      const currentTimeOfDay = getCurrentTimeOfDay();
-      const config = completionMessagesByTimeOfDay[currentTimeOfDay] || completionMessagesByTimeOfDay.morning;
+      const config = completionMessagesByTimeOfDay[activeTimeOfDay] || completionMessagesByTimeOfDay.morning;
 
       const titleEl = document.getElementById('allDoneTitle');
       const bodyEl = document.getElementById('allDoneBody');
@@ -300,7 +328,25 @@
       banner.classList.remove('hidden');
     }
 
+    function clearChildTasks(childName) {
+      // Uncheck all boxes in the DOM
+      const boxes = document.querySelectorAll(`input[type="checkbox"][data-child="${childName}"]`);
+      boxes.forEach(cb => {
+        cb.checked = false;
+      });
+
+      // Clear stored state for this child + active time-of-day
+      if (taskState[activeTimeOfDay] && taskState[activeTimeOfDay][childName]) {
+        taskState[activeTimeOfDay][childName] = {};
+        saveTaskState();
+      }
+
+      updateChildStatus(childName);
+      updateAllDoneBanner();
+    }
+
     function renderTasksForTimeOfDay(timeOfDay) {
+      activeTimeOfDay = timeOfDay;
       const tasks = tasksByTimeOfDay[timeOfDay] || tasksByTimeOfDay['morning'];
 
       CHILDREN.forEach(childName => {
@@ -310,6 +356,9 @@
         const childTasks = tasks.filter(task =>
           Array.isArray(task.appliesTo) && task.appliesTo.includes(childName)
         );
+
+        const storedForChild =
+          (taskState[timeOfDay] && taskState[timeOfDay][childName]) || {};
 
         if (!childTasks.length) {
           const li = document.createElement('li');
@@ -330,6 +379,11 @@
           checkbox.dataset.child = childName;
           checkbox.dataset.taskId = task.id;
 
+          // Restore persisted state (checked / unchecked)
+          if (storedForChild[task.id]) {
+            checkbox.checked = true;
+          }
+
           const label = document.createElement('label');
           label.setAttribute('for', checkbox.id);
           label.className = 'text-xs md:text-sm text-slate-800';
@@ -340,6 +394,17 @@
           listEl.appendChild(li);
 
           checkbox.addEventListener('change', () => {
+            // Ensure nested structure exists
+            if (!taskState[timeOfDay]) {
+              taskState[timeOfDay] = {};
+            }
+            if (!taskState[timeOfDay][childName]) {
+              taskState[timeOfDay][childName] = {};
+            }
+
+            taskState[timeOfDay][childName][task.id] = checkbox.checked;
+            saveTaskState();
+
             updateChildStatus(childName);
             updateAllDoneBanner();
           });
@@ -354,14 +419,27 @@
     // --- INIT ----------------------------------------------------------------
 
     document.addEventListener('DOMContentLoaded', () => {
-      const currentTimeOfDay = getCurrentTimeOfDay();
-      const labelEl = document.getElementById('timeOfDayLabel');
+      // Load persisted state (if any)
+      taskState = loadTaskState();
+
+      const initialTimeOfDay = getCurrentTimeOfDay();
+      activeTimeOfDay = initialTimeOfDay;
+
       const messageEl = document.getElementById('timeMessage');
+      messageEl.textContent = timeOfDayMessages[initialTimeOfDay] || '';
 
-      labelEl.textContent = timeOfDayLabels[currentTimeOfDay] || 'Checklist';
-      messageEl.textContent = timeOfDayMessages[currentTimeOfDay] || '';
+      renderTasksForTimeOfDay(initialTimeOfDay);
 
-      renderTasksForTimeOfDay(currentTimeOfDay);
+      // Wire up Clear All buttons
+      const clearSundayBtn = document.getElementById('clear-Sunday');
+      const clearIsaacBtn = document.getElementById('clear-Isaac');
+
+      if (clearSundayBtn) {
+        clearSundayBtn.addEventListener('click', () => clearChildTasks('Sunday'));
+      }
+      if (clearIsaacBtn) {
+        clearIsaacBtn.addEventListener('click', () => clearChildTasks('Isaac'));
+      }
     });
   </script>
 </body>
